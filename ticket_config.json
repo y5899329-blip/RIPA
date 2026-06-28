@@ -1,11 +1,15 @@
 {
   "ticket_counter": 0,
-  "welcome_message": "Please describe your issue below and a staff member will be with you shortly.\n\nTo close this ticket, click the **Close Ticket** button.",
-  "button_text": "Open Ticket",
-  "button_color": "primary",
-  "button_emoji": "🎫",
   "config_role_id": null,
-  "category_id": null,
   "log_channel_id": null,
-  "support_role_id": null
+  "panels": {
+    "default": {
+      "welcome_message": "Please describe your issue below and a staff member will be with you shortly.\n\nTo close this ticket, click the **Close Ticket** button.",
+      "button_text": "Open Ticket",
+      "button_color": "primary",
+      "button_emoji": "🎫",
+      "support_role_id": null,
+      "category_id": null
+    }
+  }
 }

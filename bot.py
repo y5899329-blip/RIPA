@@ -25,13 +25,11 @@ COGS = [
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print(f"Connected to {len(bot.guilds)} guild(s)")
-
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} slash command(s)")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
-
     await bot.change_presence(activity=discord.Game(name="/help"))
 
 

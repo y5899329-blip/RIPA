@@ -26,6 +26,45 @@ class General(commands.Cog):
         embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
         await ctx.send(embed=embed)
 
+    @commands.hybrid_command(name="help", description="Show all available commands.")
+    async def help(self, ctx: commands.Context):
+        embed = discord.Embed(
+            title="📋 All Commands",
+            description="Here's everything I can do. Use `/` before each command.",
+            color=discord.Color.blurple(),
+        )
+
+        sections = {
+            "🔧 General": [
+                ("`/ping`", "Check the bot's latency."),
+                ("`/hello`", "Say hello."),
+                ("`/info`", "Show bot info."),
+                ("`/help`", "Show this message."),
+            ],
+            "🔨 Moderation": [
+                ("`/ban @user [reason]`", "Ban a member and log it with a red embed."),
+                ("`/kick @user [reason]`", "Kick a member and log it with a red embed."),
+                ("`/unban <user#tag or ID>`", "Unban a previously banned user."),
+                ("`/clear [amount]`", "Delete messages in the channel (max 100)."),
+            ],
+            "🎫 Tickets": [
+                ("`/ticket_panel`", "Post the Open Ticket panel. *(Admin only)*"),
+                ("`/add @user`", "Add a member to the current ticket."),
+                ("`/remove @user`", "Remove a member from the current ticket."),
+                ("`/rename <name>`", "Rename the current ticket channel."),
+            ],
+        }
+
+        for section, commands_list in sections.items():
+            value = "\n".join(f"{cmd} — {desc}" for cmd, desc in commands_list)
+            embed.add_field(name=section, value=value, inline=False)
+
+        embed.set_footer(
+            text=f"Requested by {ctx.author}",
+            icon_url=ctx.author.display_avatar.url,
+        )
+        await ctx.send(embed=embed)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(General(bot))

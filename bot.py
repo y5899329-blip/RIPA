@@ -12,7 +12,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+bot = commands.Bot(command_prefix=PREFIX, intents=intents, help_command=None)
 
 COGS = [
     "cogs.general",
@@ -26,7 +26,6 @@ async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print(f"Connected to {len(bot.guilds)} guild(s)")
 
-    # Sync slash commands with Discord so they appear in the / menu
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} slash command(s)")
@@ -41,7 +40,7 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(f"Missing argument: `{error.param.name}`. Use `/help {ctx.command}` for usage.")
+        await ctx.send(f"Missing argument: `{error.param.name}`. Use `/help` to see usage.")
     elif isinstance(error, commands.MissingPermissions):
         await ctx.send("You don't have permission to use this command.")
     elif isinstance(error, commands.BotMissingPermissions):

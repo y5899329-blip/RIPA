@@ -4,7 +4,6 @@ import datetime
 import discord
 from discord.ext import commands
 
-# ── Config ────────────────────────────────────────────────────────────────────
 CATEGORY_ID = int(os.getenv("TICKET_CATEGORY_ID", 0) or 0)
 LOG_CHANNEL_ID = int(os.getenv("TICKET_LOG_CHANNEL_ID", 0) or 0)
 SUPPORT_ROLE_ID = int(os.getenv("SUPPORT_ROLE_ID", 0) or 0)
@@ -13,7 +12,6 @@ EMBED_COLOR = discord.Color.from_rgb(88, 101, 242)
 CLOSE_COLOR = discord.Color.red()
 SUCCESS_COLOR = discord.Color.green()
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _ticket_number(guild: discord.Guild) -> str:
     count = sum(1 for ch in guild.text_channels if ch.name.startswith("ticket-"))
@@ -38,11 +36,7 @@ async def _build_transcript(channel: discord.TextChannel) -> discord.File:
     return discord.File(io.BytesIO(content), filename=f"{channel.name}-transcript.txt")
 
 
-# ── Views / Buttons ───────────────────────────────────────────────────────────
-
 class TicketOpenView(discord.ui.View):
-    """Persistent panel view with an Open Ticket button."""
-
     def __init__(self):
         super().__init__(timeout=None)
 
@@ -115,8 +109,6 @@ class TicketOpenView(discord.ui.View):
 
 
 class TicketControlView(discord.ui.View):
-    """Buttons inside an open ticket."""
-
     def __init__(self):
         super().__init__(timeout=None)
 
@@ -188,8 +180,6 @@ class CloseReasonModal(discord.ui.Modal, title="Close Ticket"):
         await discord.utils.sleep_until(datetime.datetime.utcnow() + datetime.timedelta(seconds=5))
         await channel.delete(reason=f"Ticket closed by {closer}: {reason_text}")
 
-
-# ── Cog ───────────────────────────────────────────────────────────────────────
 
 class Tickets(commands.Cog):
     """Ticket system commands."""

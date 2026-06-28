@@ -1,30 +1,49 @@
 import datetime
 import discord
 from discord.ext import commands
+from utils.images import make_action_banner
 
 
 # ── Embed builder ─────────────────────────────────────────────────────────────
 
-def _action_embed(
+async def _send_action(
+    ctx: commands.Context,
     action: str,
     target: discord.Member | discord.User,
     moderator: discord.Member,
     reason: str,
-) -> discord.Embed:
-    """Build a red embed for a moderation action (BAN / KICK / UNBAN)."""
+):
+    """Send a red embed with a generated banner image for a moderation action."""
+    filename = f"{action.lower()}.png"
+    banner_buf = make_action_banner(action)
+    banner_file = discord.File(banner_buf, filename=filename)
+
     embed = discord.Embed(
-        title=f"🔨 {action}",
         color=discord.Color.red(),
         timestamp=datetime.datetime.utcnow(),
     )
-    # Target's avatar as the main thumbnail
+    # Banner image at the top of the embed
+    embed.set_image(url=f"attachment://{filename}")
+    # Target avatar
     embed.set_thumbnail(url=target.display_avatar.url)
 
-    embed.add_field(name="User", value=f"{target.mention}\n`{target}` ({target.id})", inline=True)
-    embed.add_field(name="Moderator", value=f"{moderator.mention}\n`{moderator}`", inline=True)
+    embed.add_field(
+        name="User",
+        value=f"{target.mention}\n`{target}` ({target.id})",
+        inline=True,
+    )
+    embed.add_field(
+        name="Moderator",
+        value=f"{moderator.mention}\n`{moderator}`",
+        inline=True,
+    )
     embed.add_field(name="Reason", value=reason, inline=False)
-    embed.set_footer(text=f"Action: {action}", icon_url=moderator.display_avatar.url)
-    return embed
+    embed.set_footer(
+        text=f"Action executed by {moderator}",
+        icon_url=moderator.display_avatar.url,
+    )
+
+    await ctx.send(embed=embed, file=banner_file)
 
 
 # ── Cog ───────────────────────────────────────────────────────────────────────
@@ -50,11 +69,9 @@ class Moderation(commands.Cog):
         if member.top_role >= ctx.author.top_role:
             await ctx.send("You cannot kick someone with an equal or higher role.", ephemeral=True)
             return
-
+        await ctx.defer()
         await member.kick(reason=reason)
-
-        embed = _action_embed("KICKED", member, ctx.author, reason)
-        await ctx.send(embed=embed)
+        await _send_action(ctx, "KICKED", member, ctx.author, reason)
 
     # ── Ban ───────────────────────────────────────────────────────────────────
 
@@ -71,11 +88,9 @@ class Moderation(commands.Cog):
         if member.top_role >= ctx.author.top_role:
             await ctx.send("You cannot ban someone with an equal or higher role.", ephemeral=True)
             return
-
+        await ctx.defer()
         await member.ban(reason=reason)
-
-        embed = _action_embed("BANNED", member, ctx.author, reason)
-        await ctx.send(embed=embed)
+        await _send_action(ctx, "BANNED", member, ctx.author, reason)
 
     # ── Unban ─────────────────────────────────────────────────────────────────
 
@@ -83,15 +98,13 @@ class Moderation(commands.Cog):
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_permissions(ban_members=True)
     async def unban(self, ctx: commands.Context, user: str):
+        await ctx.defer()
         banned_users = [entry async for entry in ctx.guild.bans()]
         for ban_entry in banned_users:
             if str(ban_entry.user) == user or str(ban_entry.user.id) == user:
                 await ctx.guild.unban(ban_entry.user)
-
-                embed = _action_embed("UNBANNED", ban_entry.user, ctx.author, "Unbanned manually.")
-                await ctx.send(embed=embed)
+                await _send_action(ctx, "UNBANNED", ban_entry.user, ctx.author, "Manually unbanned.")
                 return
-
         await ctx.send(f"No banned user found matching `{user}`.", ephemeral=True)
 
     # ── Clear ─────────────────────────────────────────────────────────────────

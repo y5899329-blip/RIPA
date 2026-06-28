@@ -8,24 +8,18 @@ class General(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(name="ping")
+    @commands.hybrid_command(name="ping", description="Check the bot's latency.")
     async def ping(self, ctx: commands.Context):
-        """Check the bot's latency."""
         latency = round(self.bot.latency * 1000)
         await ctx.send(f"Pong! `{latency}ms`")
 
-    @commands.command(name="hello")
+    @commands.hybrid_command(name="hello", description="Say hello.")
     async def hello(self, ctx: commands.Context):
-        """Say hello."""
         await ctx.send(f"Hello, {ctx.author.mention}!")
 
-    @commands.command(name="info")
+    @commands.hybrid_command(name="info", description="Show bot info.")
     async def info(self, ctx: commands.Context):
-        """Show bot info."""
-        embed = discord.Embed(
-            title="Bot Info",
-            color=discord.Color.blurple(),
-        )
+        embed = discord.Embed(title="Bot Info", color=discord.Color.blurple())
         embed.add_field(name="Servers", value=str(len(self.bot.guilds)), inline=True)
         embed.add_field(name="Users", value=str(len(self.bot.users)), inline=True)
         embed.add_field(name="Latency", value=f"{round(self.bot.latency * 1000)}ms", inline=True)

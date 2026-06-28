@@ -9,23 +9,18 @@ CATEGORY_ID = int(os.getenv("TICKET_CATEGORY_ID", 0) or 0)
 LOG_CHANNEL_ID = int(os.getenv("TICKET_LOG_CHANNEL_ID", 0) or 0)
 SUPPORT_ROLE_ID = int(os.getenv("SUPPORT_ROLE_ID", 0) or 0)
 
-EMBED_COLOR = discord.Color.from_rgb(88, 101, 242)   # Blurple
+EMBED_COLOR = discord.Color.from_rgb(88, 101, 242)
 CLOSE_COLOR = discord.Color.red()
 SUCCESS_COLOR = discord.Color.green()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _ticket_number(guild: discord.Guild) -> str:
-    """Return the next ticket number based on existing ticket channels."""
-    count = sum(
-        1 for ch in guild.text_channels
-        if ch.name.startswith("ticket-")
-    )
+    count = sum(1 for ch in guild.text_channels if ch.name.startswith("ticket-"))
     return str(count + 1).zfill(4)
 
 
 async def _build_transcript(channel: discord.TextChannel) -> discord.File:
-    """Collect channel history and return it as a .txt File attachment."""
     lines: list[str] = [
         f"Transcript for #{channel.name}",
         f"Server : {channel.guild.name}",
@@ -46,7 +41,7 @@ async def _build_transcript(channel: discord.TextChannel) -> discord.File:
 # ── Views / Buttons ───────────────────────────────────────────────────────────
 
 class TicketOpenView(discord.ui.View):
-    """Persistent view with an 'Open Ticket' button (sent to a panel channel)."""
+    """Persistent panel view with an Open Ticket button."""
 
     def __init__(self):
         super().__init__(timeout=None)
@@ -61,58 +56,43 @@ class TicketOpenView(discord.ui.View):
         guild = interaction.guild
         member = interaction.user
 
-        # Check for an existing open ticket
         existing = discord.utils.get(
             guild.text_channels,
             name=f"ticket-{member.name.lower().replace(' ', '-')}",
         )
         if existing:
             await interaction.response.send_message(
-                f"You already have an open ticket: {existing.mention}",
-                ephemeral=True,
+                f"You already have an open ticket: {existing.mention}", ephemeral=True
             )
             return
 
         await interaction.response.defer(ephemeral=True)
 
-        # Resolve category and support role
         category = guild.get_channel(CATEGORY_ID) if CATEGORY_ID else None
         support_role = guild.get_role(SUPPORT_ROLE_ID) if SUPPORT_ROLE_ID else None
-
         ticket_num = _ticket_number(guild)
-        channel_name = f"ticket-{ticket_num}"
 
-        # Permission overwrites
         overwrites: dict = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             member: discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True,
+                view_channel=True, send_messages=True, read_message_history=True
             ),
             guild.me: discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                manage_channels=True,
-                read_message_history=True,
+                view_channel=True, send_messages=True, manage_channels=True, read_message_history=True
             ),
         }
         if support_role:
             overwrites[support_role] = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True,
-                manage_messages=True,
+                view_channel=True, send_messages=True, read_message_history=True, manage_messages=True
             )
 
         channel = await guild.create_text_channel(
-            channel_name,
+            f"ticket-{ticket_num}",
             category=category,
             overwrites=overwrites,
             topic=f"Ticket opened by {member} ({member.id})",
         )
 
-        # Welcome embed inside the ticket
         embed = discord.Embed(
             title=f"Ticket #{ticket_num}",
             description=(
@@ -131,15 +111,11 @@ class TicketOpenView(discord.ui.View):
             embed=embed,
             view=TicketControlView(),
         )
-
-        await interaction.followup.send(
-            f"Your ticket has been created: {channel.mention}",
-            ephemeral=True,
-        )
+        await interaction.followup.send(f"Your ticket has been created: {channel.mention}", ephemeral=True)
 
 
 class TicketControlView(discord.ui.View):
-    """View shown inside an open ticket with Close and Claim buttons."""
+    """Buttons inside an open ticket."""
 
     def __init__(self):
         super().__init__(timeout=None)
@@ -162,17 +138,13 @@ class TicketControlView(discord.ui.View):
     async def claim_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
         support_role = interaction.guild.get_role(SUPPORT_ROLE_ID) if SUPPORT_ROLE_ID else None
         if support_role and support_role not in interaction.user.roles:
-            await interaction.response.send_message(
-                "Only support staff can claim tickets.", ephemeral=True
-            )
+            await interaction.response.send_message("Only support staff can claim tickets.", ephemeral=True)
             return
-
         embed = discord.Embed(
             description=f"✋ {interaction.user.mention} has claimed this ticket.",
             color=SUCCESS_COLOR,
         )
         await interaction.response.send_message(embed=embed)
-        # Disable the claim button after claiming
         button.disabled = True
         button.label = f"Claimed by {interaction.user.display_name}"
         await interaction.message.edit(view=self)
@@ -194,8 +166,6 @@ class CloseReasonModal(discord.ui.Modal, title="Close Ticket"):
         reason_text = self.reason.value or "No reason provided"
 
         await interaction.response.defer()
-
-        # Build and send transcript
         transcript_file = await _build_transcript(channel)
 
         log_channel = guild.get_channel(LOG_CHANNEL_ID) if LOG_CHANNEL_ID else None
@@ -211,14 +181,11 @@ class CloseReasonModal(discord.ui.Modal, title="Close Ticket"):
             await log_channel.send(embed=log_embed, file=transcript_file)
 
         close_embed = discord.Embed(
-            description=f"🔒 Ticket closed by {closer.mention}.\nReason: {reason_text}\n\nThis channel will be deleted in 5 seconds.",
+            description=f"🔒 Closed by {closer.mention}. Reason: {reason_text}\n\nDeleting in 5 seconds...",
             color=CLOSE_COLOR,
         )
         await channel.send(embed=close_embed)
-
-        await discord.utils.sleep_until(
-            datetime.datetime.utcnow() + datetime.timedelta(seconds=5)
-        )
+        await discord.utils.sleep_until(datetime.datetime.utcnow() + datetime.timedelta(seconds=5))
         await channel.delete(reason=f"Ticket closed by {closer}: {reason_text}")
 
 
@@ -229,14 +196,12 @@ class Tickets(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Re-register persistent views so buttons work after restart
         bot.add_view(TicketOpenView())
         bot.add_view(TicketControlView())
 
-    @commands.command(name="ticket-panel")
+    @commands.hybrid_command(name="ticket_panel", description="Post the ticket panel in this channel. (Admin only)")
     @commands.has_permissions(administrator=True)
     async def ticket_panel(self, ctx: commands.Context):
-        """Send the ticket panel embed with an Open Ticket button to this channel."""
         embed = discord.Embed(
             title="🎫 Support Tickets",
             description=(
@@ -245,44 +210,37 @@ class Tickets(commands.Cog):
             ),
             color=EMBED_COLOR,
         )
-        embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon.url if ctx.guild.icon else None)
+        embed.set_footer(
+            text=ctx.guild.name,
+            icon_url=ctx.guild.icon.url if ctx.guild.icon else None,
+        )
         await ctx.send(embed=embed, view=TicketOpenView())
-        await ctx.message.delete()
 
-    @commands.command(name="add")
+    @commands.hybrid_command(name="add", description="Add a member to the current ticket.")
     @commands.has_permissions(manage_channels=True)
     async def add_member(self, ctx: commands.Context, member: discord.Member):
-        """Add a member to the current ticket channel."""
         if not ctx.channel.name.startswith("ticket-"):
-            await ctx.send("This command can only be used inside a ticket channel.")
+            await ctx.send("This command can only be used inside a ticket channel.", ephemeral=True)
             return
         await ctx.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
-        embed = discord.Embed(
-            description=f"✅ {member.mention} has been added to the ticket.",
-            color=SUCCESS_COLOR,
-        )
+        embed = discord.Embed(description=f"✅ {member.mention} has been added to the ticket.", color=SUCCESS_COLOR)
         await ctx.send(embed=embed)
 
-    @commands.command(name="remove")
+    @commands.hybrid_command(name="remove", description="Remove a member from the current ticket.")
     @commands.has_permissions(manage_channels=True)
     async def remove_member(self, ctx: commands.Context, member: discord.Member):
-        """Remove a member from the current ticket channel."""
         if not ctx.channel.name.startswith("ticket-"):
-            await ctx.send("This command can only be used inside a ticket channel.")
+            await ctx.send("This command can only be used inside a ticket channel.", ephemeral=True)
             return
         await ctx.channel.set_permissions(member, overwrite=None)
-        embed = discord.Embed(
-            description=f"❌ {member.mention} has been removed from the ticket.",
-            color=CLOSE_COLOR,
-        )
+        embed = discord.Embed(description=f"❌ {member.mention} has been removed from the ticket.", color=CLOSE_COLOR)
         await ctx.send(embed=embed)
 
-    @commands.command(name="rename")
+    @commands.hybrid_command(name="rename", description="Rename the current ticket channel.")
     @commands.has_permissions(manage_channels=True)
-    async def rename_ticket(self, ctx: commands.Context, *, name: str):
-        """Rename the current ticket channel."""
+    async def rename_ticket(self, ctx: commands.Context, name: str):
         if not ctx.channel.name.startswith("ticket-"):
-            await ctx.send("This command can only be used inside a ticket channel.")
+            await ctx.send("This command can only be used inside a ticket channel.", ephemeral=True)
             return
         safe_name = name.lower().replace(" ", "-")
         await ctx.channel.edit(name=f"ticket-{safe_name}")

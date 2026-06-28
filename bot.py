@@ -25,7 +25,15 @@ COGS = [
 async def on_ready():
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print(f"Connected to {len(bot.guilds)} guild(s)")
-    await bot.change_presence(activity=discord.Game(name=f"{PREFIX}help"))
+
+    # Sync slash commands with Discord so they appear in the / menu
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} slash command(s)")
+    except Exception as e:
+        print(f"Failed to sync commands: {e}")
+
+    await bot.change_presence(activity=discord.Game(name="/help"))
 
 
 @bot.event
@@ -33,7 +41,7 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(f"Missing argument: `{error.param.name}`. Use `{PREFIX}help {ctx.command}` for usage.")
+        await ctx.send(f"Missing argument: `{error.param.name}`. Use `/help {ctx.command}` for usage.")
     elif isinstance(error, commands.MissingPermissions):
         await ctx.send("You don't have permission to use this command.")
     elif isinstance(error, commands.BotMissingPermissions):

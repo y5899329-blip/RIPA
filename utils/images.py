@@ -2,51 +2,34 @@ import io
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-WIDTH = 900
-HEIGHT = 280
+# Banner size — tall enough for massive text
+WIDTH = 1000
+HEIGHT = 300
+
 BG_COLOR = (180, 0, 0)
 STRIPE_COLOR = (140, 0, 0)
 TEXT_COLOR = (255, 255, 255)
 
-# Padding so the text doesn't touch the very edge
-H_PADDING = 30
-V_PADDING = 16
+# Bundled font — always available regardless of OS
+_HERE = os.path.dirname(os.path.abspath(__file__))
+FONT_PATH = os.path.join(_HERE, "..", "assets", "bold.ttf")
 
 
-def _find_font(size: int):
-    candidates = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-        "C:/Windows/Fonts/arialbd.ttf",
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            return ImageFont.truetype(path, size)
-    return ImageFont.load_default()
-
-
-def _fit_font(draw: ImageDraw.ImageDraw, text: str, max_w: int, max_h: int):
-    """Binary-search the largest font size that fits within max_w × max_h."""
-    lo, hi = 10, 600
-    best_font = _find_font(lo)
-    best_size = lo
-
+def _fit_font(draw: ImageDraw.ImageDraw, text: str, max_w: int, max_h: int) -> ImageFont.FreeTypeFont:
+    """Binary-search the largest font size where text fits inside max_w × max_h."""
+    lo, hi = 50, 1000
+    best = ImageFont.truetype(FONT_PATH, lo)
     while lo <= hi:
         mid = (lo + hi) // 2
-        font = _find_font(mid)
+        font = ImageFont.truetype(FONT_PATH, mid)
         bbox = draw.textbbox((0, 0), text, font=font)
-        w = bbox[2] - bbox[0]
-        h = bbox[3] - bbox[1]
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
         if w <= max_w and h <= max_h:
-            best_font = font
-            best_size = mid
+            best = font
             lo = mid + 1
         else:
             hi = mid - 1
-
-    return best_font
+    return best
 
 
 def make_action_banner(text: str) -> io.BytesIO:
@@ -54,28 +37,24 @@ def make_action_banner(text: str) -> io.BytesIO:
     draw = ImageDraw.Draw(img)
 
     # Diagonal stripe texture
-    stripe_gap = 50
-    for x in range(-HEIGHT, WIDTH + HEIGHT, stripe_gap):
-        draw.line([(x, 0), (x + HEIGHT, HEIGHT)], fill=STRIPE_COLOR, width=22)
+    for x in range(-HEIGHT, WIDTH + HEIGHT, 50):
+        draw.line([(x, 0), (x + HEIGHT, HEIGHT)], fill=STRIPE_COLOR, width=24)
 
-    # Center bar background
-    draw.rectangle([(0, V_PADDING), (WIDTH, HEIGHT - V_PADDING)], fill=(120, 0, 0))
+    # Dark center bar
+    pad = 18
+    draw.rectangle([(0, pad), (WIDTH, HEIGHT - pad)], fill=(115, 0, 0))
 
-    # Find the biggest font that fills the usable area
-    max_w = WIDTH - H_PADDING * 2
-    max_h = HEIGHT - V_PADDING * 2
-    font = _fit_font(draw, text, max_w, max_h)
+    # Fit the font to fill almost the entire banner (4px margin each side)
+    font = _fit_font(draw, text, WIDTH - 8, HEIGHT - pad * 2 - 4)
 
-    # Center the text
+    # Center
     bbox = draw.textbbox((0, 0), text, font=font)
-    text_w = bbox[2] - bbox[0]
-    text_h = bbox[3] - bbox[1]
-    x = (WIDTH - text_w) // 2 - bbox[0]
-    y = (HEIGHT - text_h) // 2 - bbox[1]
+    x = (WIDTH - (bbox[2] - bbox[0])) // 2 - bbox[0]
+    y = (HEIGHT - (bbox[3] - bbox[1])) // 2 - bbox[1]
 
-    # Drop shadow
-    draw.text((x + 5, y + 5), text, font=font, fill=(70, 0, 0))
-    # Main text
+    # Drop shadow for depth
+    draw.text((x + 6, y + 6), text, font=font, fill=(60, 0, 0))
+    # Main white text
     draw.text((x, y), text, font=font, fill=TEXT_COLOR)
 
     buf = io.BytesIO()
